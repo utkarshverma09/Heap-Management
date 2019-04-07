@@ -6,7 +6,7 @@
 
 #define ALIGN4(s)         (((((s) - 1) >> 2) << 2) + 4)
 #define BLOCK_DATA(b)      ((b) + 1)
-#define BLOCK_HEADER(ptr)   ((struct block *)(ptr) - 1)
+#define BLOCK_HEADER(ptr)   ((struct _block *)(ptr) - 1)
 
 
 static int atexit_registered = 0;
@@ -44,31 +44,32 @@ void printStatistics( void )
   printf("max heap:\t%d\n", max_heap );
 }
 
-struct block 
+struct _block 
 {
-   size_t      size;  /* Size of the allocated block of memory in bytes */
-   struct block *next;  /* Pointer to the next block of allcated memory   */
-   bool        free;  /* Is this block free?                     */
+   size_t  size;         /* Size of the allocated _block of memory in bytes */
+   struct _block *next;  /* Pointer to the next _block of allcated memory   */
+   bool   free;          /* Is this _block free?                     */
+   char   padding[3];
 };
 
 
-struct block *FreeList = NULL; /* Free list to track the blocks available */
+struct _block *freeList = NULL; /* Free list to track the _blocks available */
 
 /*
  * \brief findFreeBlock
  *
- * \param last pointer to the linked list of free blocks
- * \param size size of the block needed in bytes 
+ * \param last pointer to the linked list of free _blocks
+ * \param size size of the _block needed in bytes 
  *
- * \return a block that fits the request or NULL if no free block matches
+ * \return a _block that fits the request or NULL if no free _block matches
  *
  * \TODO Implement Next Fit
  * \TODO Implement Best Fit
  * \TODO Implement Worst Fit
  */
-struct block *findFreeBlock(struct block **last, size_t size) 
+struct _block *findFreeBlock(struct _block **last, size_t size) 
 {
-   struct block *curr = FreeList;
+   struct _block *curr = freeList;
 
 #if defined FIT && FIT == 0
    /* First fit */
@@ -101,38 +102,38 @@ struct block *findFreeBlock(struct block **last, size_t size)
  * increase the data segment of the calling process.  Updates
  * the free list with the newly allocated memory.
  *
- * \param last tail of the free block list
+ * \param last tail of the free _block list
  * \param size size in bytes to request from the OS
  *
- * \return returns the newly allocated block of NULL if failed
+ * \return returns the newly allocated _block of NULL if failed
  */
-struct block *growHeap(struct block *last, size_t size) 
+struct _block *growHeap(struct _block *last, size_t size) 
 {
    /* Request more space from OS */
-   struct block *curr = (struct block *)sbrk(0);
-   struct block *prev = (struct block *)sbrk(sizeof(struct block) + size);
+   struct _block *curr = (struct _block *)sbrk(0);
+   struct _block *prev = (struct _block *)sbrk(sizeof(struct _block) + size);
 
    assert(curr == prev);
 
    /* OS allocation failed */
-   if (curr == (struct block *)-1) 
+   if (curr == (struct _block *)-1) 
    {
       return NULL;
    }
 
-   /* Update FreeList if not set */
-   if (FreeList == NULL) 
+   /* Update freeList if not set */
+   if (freeList == NULL) 
    {
-      FreeList = curr;
+      freeList = curr;
    }
 
-   /* Attach new block to prev block */
+   /* Attach new _block to prev _block */
    if (last) 
    {
       last->next = curr;
    }
 
-   /* Update block metadata */
+   /* Update _block metadata */
    curr->size = size;
    curr->next = NULL;
    curr->free = false;
@@ -142,9 +143,9 @@ struct block *growHeap(struct block *last, size_t size)
 /*
  * \brief malloc
  *
- * finds a free block of heap memory for the calling process.
- * if there is no free block that satisfies the request then grows the 
- * heap and returns a new block
+ * finds a free _block of heap memory for the calling process.
+ * if there is no free _block that satisfies the request then grows the 
+ * heap and returns a new _block
  *
  * \param size size of the requested memory in bytes
  *
@@ -169,36 +170,36 @@ void *malloc(size_t size)
       return NULL;
    }
 
-   /* Look for free block */
-   struct block *last = FreeList;
-   struct block *next = findFreeBlock(&last, size);
+   /* Look for free _block */
+   struct _block *last = freeList;
+   struct _block *next = findFreeBlock(&last, size);
 
-   /* TODO: Split free block if possible */
+   /* TODO: Split free _block if possible */
 
-   /* Could not find free block, so grow heap */
+   /* Could not find free _block, so grow heap */
    if (next == NULL) 
    {
       next = growHeap(last, size);
    }
 
-   /* Could not find free block or grow heap, so just return NULL */
+   /* Could not find free _block or grow heap, so just return NULL */
    if (next == NULL) 
    {
       return NULL;
    }
    
-   /* Mark block as in use */
+   /* Mark _block as in use */
    next->free = false;
 
-   /* Return data address associated with block */
+   /* Return data address associated with _block */
    return BLOCK_DATA(next);
 }
 
 /*
  * \brief free
  *
- * frees the memory block pointed to by pointer. if the block is adjacent
- * to another block then coalesces (combines) them
+ * frees the memory _block pointed to by pointer. if the _block is adjacent
+ * to another _block then coalesces (combines) them
  *
  * \param ptr the heap memory to free
  *
@@ -211,12 +212,12 @@ void free(void *ptr)
       return;
    }
 
-   /* Make block as free */
-   struct block *curr = BLOCK_HEADER(ptr);
+   /* Make _block as free */
+   struct _block *curr = BLOCK_HEADER(ptr);
    assert(curr->free == 0);
    curr->free = true;
 
-   /* TODO: Coalesce free blocks if needed */
+   /* TODO: Coalesce free _blocks if needed */
 }
 
 /* vim: set expandtab sts=3 sw=3 ts=6 ft=cpp: --------------------------------*/
