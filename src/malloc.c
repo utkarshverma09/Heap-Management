@@ -47,6 +47,7 @@ void printStatistics( void )
 struct _block 
 {
    size_t  size;         /* Size of the allocated _block of memory in bytes */
+   struct _block *prev;  /* Pointer to the previous _block of allcated memory   */
    struct _block *next;  /* Pointer to the next _block of allcated memory   */
    bool   free;          /* Is this _block free?                     */
    char   padding[3];
