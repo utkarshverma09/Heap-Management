@@ -53,7 +53,7 @@ struct _block
 };
 
 
-struct _block *freeList = NULL; /* Free list to track the _blocks available */
+struct _block *heapList = NULL; /* Free list to track the _blocks available */
 
 /*
  * \brief findFreeBlock
@@ -69,7 +69,7 @@ struct _block *freeList = NULL; /* Free list to track the _blocks available */
  */
 struct _block *findFreeBlock(struct _block **last, size_t size) 
 {
-   struct _block *curr = freeList;
+   struct _block *curr = heapList;
 
 #if defined FIT && FIT == 0
    /* First fit */
@@ -121,10 +121,10 @@ struct _block *growHeap(struct _block *last, size_t size)
       return NULL;
    }
 
-   /* Update freeList if not set */
-   if (freeList == NULL) 
+   /* Update heapList if not set */
+   if (heapList == NULL) 
    {
-      freeList = curr;
+      heapList = curr;
    }
 
    /* Attach new _block to prev _block */
@@ -171,7 +171,7 @@ void *malloc(size_t size)
    }
 
    /* Look for free _block */
-   struct _block *last = freeList;
+   struct _block *last = heapList;
    struct _block *next = findFreeBlock(&last, size);
 
    /* TODO: Split free _block if possible */
