@@ -3,6 +3,9 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <limits.h>
+#include <string.h>
+#include <stdint.h>
 
 #define ALIGN4(s)         (((((s) - 1) >> 2) << 2) + 4)
 #define BLOCK_DATA(b)      ((b) + 1)
@@ -55,7 +58,7 @@ struct _block
 
 
 struct _block *heapList = NULL; /* Free list to track the _blocks available */
-
+struct _block *temp= NULL;
 /*
  * \brief findFreeBlock
  *
@@ -64,7 +67,7 @@ struct _block *heapList = NULL; /* Free list to track the _blocks available */
  *
  * \return a _block that fits the request or NULL if no free _block matches
  *
- * \TODO Implement Next Fit
+ * \TODO Implement Next Fit 
  * \TODO Implement Best Fit
  * \TODO Implement Worst Fit
  */
@@ -82,15 +85,61 @@ struct _block *findFreeBlock(struct _block **last, size_t size)
 #endif
 
 #if defined BEST && BEST == 0
-   printf("TODO: Implement best fit here\n");
+   //printf("TODO: Implement best fit here\n");
+	struct _block *currBest= NULL;
+	size_t bestSize = INT_MAX;
+	while(curr)
+	{
+		*last=curr;
+		if(curr->free && (curr->size -size) < bestSize)
+		{
+			currBest=curr;
+			bestSize=(curr->size) -size;
+		}
+		curr=curr->next;
+	}
+	if(currBest)
+	{
+		curr=currBest;
+	}
+	
 #endif
 
 #if defined WORST && WORST == 0
-   printf("TODO: Implement worst fit here\n");
+    //printf("TODO: Implement worst fit here\n");
+	
+	struct _block *currWorst= NULL;
+	size_t worstSize = 0;
+	while(curr)
+	{
+		*last=curr;
+		if(curr->free && (curr->size -size) > worstSize)
+		{
+			currWorst=curr;
+			worstSize=(curr->size) -size;
+		}
+		curr=curr->next;
+	}
+	if(currWorst)
+	{
+		curr=currWorst;
+	}
+	
 #endif
 
 #if defined NEXT && NEXT == 0
-   printf("TODO: Implement next fit here\n");
+   //printf("TODO: Implement next fit here\n");
+   temp=curr;
+   if(curr!=NULL)
+   {
+	  curr=temp->next;
+   }
+   while (curr && !(curr->free && curr->size >= size)) 
+   {
+      *last = curr;
+      curr  = curr->next;
+	  temp=curr;
+   }
 #endif
 
    return curr;
@@ -132,12 +181,17 @@ struct _block *growHeap(struct _block *last, size_t size)
    if (last) 
    {
       last->next = curr;
+	  num_blocks++;
    }
 
    /* Update _block metadata */
    curr->size = size;
    curr->next = NULL;
    curr->free = false;
+   
+   //num_blocks++;
+   num_grows++;
+   //max_heap+=size;
    return curr;
 }
 
@@ -155,7 +209,7 @@ struct _block *growHeap(struct _block *last, size_t size)
  */
 void *malloc(size_t size) 
 {
-
+   num_requested+=size;
    if( atexit_registered == 0 )
    {
       atexit_registered = 1;
@@ -176,11 +230,31 @@ void *malloc(size_t size)
    struct _block *next = findFreeBlock(&last, size);
 
    /* TODO: Split free _block if possible */
+   if(next!=NULL)
+   {
+		num_reuses++;
+		if(((next->size)-size)>sizeof(struct _block))
+		{
+			int oldSize=next->size;
+			struct _block *oldNext=next->next;
+			uint8_t* ptr=(uint8_t*)next+ next->size;
+			next->next=(struct _block*) ptr;
+			next->size=size;
+			next->next->size=oldSize- size;
+			next->next->next=oldNext;
+			next->next->free=1;
+			num_splits++;
+			num_blocks++;
+		}
+   }
+
+   
 
    /* Could not find free _block, so grow heap */
    if (next == NULL) 
    {
       next = growHeap(last, size);
+	  max_heap+=size;
    }
 
    /* Could not find free _block or grow heap, so just return NULL */
@@ -190,12 +264,26 @@ void *malloc(size_t size)
    }
    
    /* Mark _block as in use */
-   next->free = false;
-
+	next->free = false;
+	num_mallocs++;
    /* Return data address associated with _block */
    return BLOCK_DATA(next);
 }
 
+//calloc
+void *calloc(size_t nmemb, size_t size)
+{
+	void *ptr=malloc(nmemb*size);
+	memset(ptr,0,nmemb);
+	return ptr;
+}
+//realoc
+void *realloc(void *ptr, size_t size)
+{
+	void *newPtr=malloc(size);
+	memcpy(newPtr,ptr,size);
+	return newPtr;
+}
 /*
  * \brief free
  *
@@ -217,8 +305,25 @@ void free(void *ptr)
    struct _block *curr = BLOCK_HEADER(ptr);
    assert(curr->free == 0);
    curr->free = true;
-
+   num_frees++;
    /* TODO: Coalesce free _blocks if needed */
+   struct _block *checkCoalesce=heapList;
+   while(checkCoalesce)
+   {
+	   if(checkCoalesce->next!=NULL)
+	   { 
+		   if(checkCoalesce->free ==1  && checkCoalesce->next->free ==1)
+		   {
+				checkCoalesce->size=checkCoalesce->size + checkCoalesce->next->size + sizeof(struct _block);
+				checkCoalesce->next=checkCoalesce->next->next;
+				checkCoalesce->free=1;
+				num_coalesces++;
+				num_blocks--;
+		   }
+	   }
+	   
+	   checkCoalesce=checkCoalesce->next;
+   }
 }
 
 /* vim: set expandtab sts=3 sw=3 ts=6 ft=cpp: --------------------------------*/
