@@ -2,7 +2,7 @@
 This is a customized implementation of a library that interacts with the operating system to perform heap management on behalf of a user process. 
 First Fit, Next Fit, Best Fit and Worst Fit along with spliting and coalescing of blocks is used to implement calloc, malloc and realloc.
 
-#How to build and run the code?
+# How to build and run the code?
 Building and Runnning the code
 The code compiles into four shared libraries and four test programs. To build the code, change to your top level assignment directory and type:
 ```{C}
